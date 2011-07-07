@@ -1,4 +1,42 @@
+/* Add this in case it doesn't exist */
+if (!Array.prototype.filter)
+{
+  Array.prototype.filter = function(fun /*, thisp */)
+  {
+    "use strict";
+
+    if (this === void 0 || this === null)
+      throw new TypeError();
+
+    var t = Object(this);
+    var len = t.length >>> 0;
+    if (typeof fun !== "function")
+      throw new TypeError();
+
+    var res = [];
+    var thisp = arguments[1];
+    for (var i = 0; i < len; i++)
+    {
+      if (i in t)
+      {
+        var val = t[i]; // in case fun mutates this
+        if (fun.call(thisp, val, i, t))
+          res.push(val);
+      }
+    }
+
+    return res;
+  };
+}
+
 (function() {   
+
+   function Event(type, data, dispatcher, target) {
+      this.type = type;
+      this.data = data || {};
+      this.dispatcher = dispatcher;
+      this.target = target;
+   };
 
    /* A deferred set */   
    function DeferredSet() {
@@ -21,7 +59,7 @@
             throw new TypeError();
             
          mutators.push(function() { 
-               func.call(null, arguments.slice(1));
+               func.apply(top, arguments.slice(1));
          });
       };
       
@@ -29,28 +67,24 @@
       this.eval = function() {
          // Simply evaluate all the mutators. The results will be available in items()
          if (arguments.length == 0) {
-            dTools.forEach(mutators, 
+//            dTools.forEach(mutators, 
          }
          // Otherwise call the given function and pass in the mutated items
-         else if (arguments.length == 1 and typeof arguments[0] === 'function') {
-            arguments[0].call(
+         else if (arguments.length == 1 && typeof arguments[0] === 'function') {
+//            arguments[0].call(
          }
          else {
             throw new TypeError();
          }
       }      
    }
-
-   /* Previous $$ binding */   
-   var _$$ = $$;
    
    /* Top-level scope */
-   var top = _globals();
+   var top = this;
 
-   /* Active timers */
-   var timersKeygen = dTools.keyPool();
-   var timers = {};
-   
+   /* Previous $d binding */   
+   var _$d = top['$d'];
+
    var dTools = function() {
       this.selected = new DeferredSet();
    }
@@ -65,10 +99,12 @@
       item in the selection.
       */
    dTools.prototype.attr = function() {
+      // TODO
    };
 
    /* Select a subset of the items in the selection. */
    dTools.prototype.select = function() {
+      // TODO
    };
    
    /* Get the first item in the selection. */
@@ -92,9 +128,11 @@
       For Director behaviours, use dTools.behavior
    */
    dTools.prototype.bind = function(options) {
+      // TODO
    };
    
    dTools.prototype.unbind = function(options) {
+      // TODO
    }
    
    /* Mutators */
@@ -129,15 +167,16 @@
          var len = iter.length >>> 0;
          for (var i = 0; i < len; i++) {
             if (i in iter)
-               ret.push(func.call(null, i, iter[key]));
+               ret.push(func.call(top, i, iter[key]));
          }
       }
       else {
          for (var key in iter) {
             if (key in iter)
-               ret.push(func.call(null, key, iter[key]));
+               ret.push(func.call(top, key, iter[key]));
          }
       }
+      return ret;
    };
 
    /* Calls each function 'func' for each key, value pair in iterable 'iter'. 
@@ -298,7 +337,7 @@
          }
       }
    };
-   
+       
    /* Returns a function to generate unique keys from a pool.
       Example:
          var pool = dTools.keyPool();
@@ -310,7 +349,7 @@
          pool[0];                         
    */
    dTools.keyPool = function() {
-      var pool = {};                    /* Currently used ids */
+      var data = {};
       var free = [[0, Infinity]];       /* Contains ranges of free ids */      
       
       var is_taken = function(i, key) {
@@ -318,7 +357,7 @@
                          : key > free[i-1][1] && key < free[i][0];
       };       
       
-      var merge = function(i, key) {
+      var merge_and_add = function(i, key) {
         free.splice(i, 0, [key, key]);
         if (i < free.length - 1 && free[i+1][0] === free[i][1] + 1) {
             free[i+1][0] = free[i][0];
@@ -328,52 +367,64 @@
             free[i-1][1] = free[i][1]
             free.splice(i, 1);
         }
+        delete data[key];
       };
 
-      var get = function() {
+      var newKey = function() {
          var ret = free[0][0];
          (free[0][0] === free[0][1]) ? free.splice(0, 1) : free[0][0] += 1;
          return ret;
-      };           
- 
-      var del = function(key) {
-         if (key < 0 || key > Infinity)
-            throw new ValueError();
-
-         var p = Math.floor(Math.random() * free.length);
-         var d = 0;
-         var max_d = Math.log(free.length) + 1;
-           
-         while (d <= max_d) {
-            if (is_taken(p, key))      
-               return merge_and_add(p, key);
-            else if (key < free[p][0]) 
-               p = Math.floor(p/2);            
-            else if (key > free[p][1])
-               p += Math.floor((free.length - p)/2);            
-            d += 1;
-         }
-         throw new KeyError();
-      };   
-      
-      return function() {
-         if (typeof arguments[0] === 'object') {
-            if (arguments[0].set)
-               
-            else if (arguments[0].del)
-               
-            else  if (arguments[0].get)
-               return pool[arguments[0]];
-            else
-               throw new TypeError();
-         }
-         else {
-            return pool[arguments[0]];
-         }      
       };
+
+      return {
+         'set' : function() {
+            if (arguments.length == 1) {
+               var key = newKey();
+               data[key] = arguments[0];
+               return key;
+            }
+            else if (arguments.length == 2) {
+               data[arguments[0]] = arguments[1];
+               return arguments[0];
+            }
+            else {
+               throw new ValueError();
+            }
+         },
+         'get' : function(key) {
+            return data[parseInt(key)];
+         },
+         'newKey' : function() {
+            return newKey();
+         },    
+         'delKey' : function(key) {
+            key = parseInt(key);
+            if (key < 0 || key > Infinity)
+               throw new ValueError();
+
+            var p = Math.floor(Math.random() * free.length);
+            var d = 0;
+            var max_d = Math.log(free.length) + 1;
+              
+            while (d <= max_d) {
+               if (is_taken(p, key))      
+                  return merge_and_add(p, key);
+               else if (key < free[p][0]) 
+                  p = Math.floor(p/2);            
+               else if (key > free[p][1])
+                  p += Math.floor((free.length - p)/2);            
+               d += 1;
+            }                  
+         }
+      }
    }
 
    /* Director-specific functions */
+
+   /* Converts the object to a proplist */
+   dTools.propList = function(obj) {
+      return propList.apply(top, dTools.itemize(obj));
+   };
 
    /* Selects members by name */
    dTools.member = function() {
@@ -418,6 +469,9 @@
       );
    }
 
+   /* Active timers */
+   var timerPool = dTools.keyPool();
+
    /* Returns a timer that calls a function after the given duration has
       elapsed.
       
@@ -429,49 +483,99 @@
    dTools.timer = function(options) {              
       if (typeof options.callback !== 'function')
          throw new ValueError();         
-   
-      var current_count = 0;            
-      var newTimeout = function(callback, oldKey) {
-         var key = timersKeygen.key();
-         return timers[key] = new timeout(key, options.duration * 1000, 'callback', {
-            callback: function() {
-               if (oldKey !== undefined)
-                  delete timers[oldKey];
-               return callback.apply(top, arguments);
-            }
-         });
+  
+      if (typeof options.duration !== 'number')
+         throw new ValueError();
+
+      options = dTools.merge(options, {
+         count : Infinity
+      });   
+
+      options.count = !options.count ? Infinity : options.count;
+
+      function Timer(key) {
+        this.currentCount = 0;
+        this.duration = options.duration;
+        this.count = options.count;
+        
+        this.stop = function() {
+          var timer = timerPool.get(key);
+          if (timer)
+            timer.forget();
+          timerPool.delKey(key);
+        };
+      }
+
+      var timeoutWrapper = function(callback, duration) {
+         var key = timerPool.newKey().toString();
+         var timer = new Timer(key);  
+         return timerPool.set(key, new timeout(key, duration * 1000, 'callback', {
+            callback: function() { callback.call(top, timer); }
+         }));
+         return timer;
       };
       
-      return newTimeout(function() {
-         if (!options.count)
-            return options.callback.apply(top, arguments);
-         else {
-            newTimeout(
-         }
+      timeoutWrapper(function(timer) {
+         timer.currentCount += 1;
+         options.callback.apply(top, [new Event('timer', {}, timer)]);
+
+         if (timer.currentCount > timer.count)
+            timer.stop();
+      }, options.duration);
+   };
+
+   /* Binds callbacks to a network request. 
+
+      'uri'        : The URI to load
+
+      'method'     : The HTTP method, one of 'post' or 'get'. Defaults to 'get'
+      'data'       : Any post data.
+      'dataType'   : The type of data expected in the response. Defaults to 'json'
+                     'json' - A JSON object is constructed from the body and passed to the 'complete' handler
+                     'text' - The body text is passed to the 'complete' handler as plain text
+      'complete'   : Callback for when the request has completed      
+      'error'      : Callback if there was an error with the request
+   */
+   dTools.net = function(uri, options) {
+      if (typeof options !== 'object')
+         throw new ValueError();
+
+      options = dTools.merge(options, {      
+         method : 'get',
+         dataType : 'json',
+         data : {}
       });
-      
-      return timers[key] = new timeout(key, options.duration * 1000, 'callback' {
-         callback : function() {
-            delete timers[key];
-            if (!options.count)               
-               return options.callback.apply(arguments);            
-            else {
-               var key = timersKeygen.key();
-               new timeout(key, 
-            }   
-            if (count countoptions.callback;
-         }
-      });
-   }
+
+      var netID;
+      if (options.method == 'get')      
+         netID = getNetText(uri, dTools.propList(options.data));
+      else if (options.method == 'post')
+         netID = postNetText(uri, dTools.propList(options.data));
+      else
+         throw new ValueError();  
+   
+      dTools.timer({
+         'duration' : 0.1,
+         'callback' : function(event) {
+            if (netDone(netID) == 1) {
+               if (typeof options.complete === 'function')
+                  options.complete.call(top, new Event('net', netTextResult(netID)));
+               if (netError(netID) != 'OK' && typeof options.error === 'function')
+                  options.error.call(top, new Event('net', {'error' : netError(netID)}));
+               event.dispatcher.stop();
+            }
+          }
+      });      
+   };
 
    /* Like Underscore's noConflict. Returns the dTools
-      object and restores $$ to its original value.
+      object and restores $d to its original value.
    */   
-   dTools.noConflict() {    
-      $$ = _$$;      
+   dTools.noConflict = function() {    
+      $d = _$d;
       return dTools;
-   }
+   };
 
-   /* Alias $$ as a global, much like jQuery's $ */       
-   top['dTools'] = top['$$'] = dTools;
+   /* Alias $d as a global, much like jQuery's $ */       
+   top['dTools'] = top['$d'] = dTools;
 })();   
