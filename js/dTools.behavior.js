@@ -30,6 +30,37 @@ For example:
       .global();
 */
 
+dTools.plugins.behavior = function(nameOrType, options) {
+
+   var convertProps = function() {
+      var props = propList();
+      dTools.forEach(options, function(key, val) {
+         props.addProp(
+            symbol(name), 
+            propList(symbol("comment"), comment, 
+            symbol("format"), symbol((!val["format"] ? "string" : val["format"]), 
+            symbol("default"), def)
+         );
+      });
+
+      for (var key in options) {
+         var val = options[key];
+            var comment = (val["comment"] == undefined) ? throw Exception("Comment must be given for property list") : val["comment"];
+            var def = (val["default"] == undefined) ? "" : val["default"];
+            var format = ;
+            
+            props.addProp(symbol("spriteList"), propList(symbol("comment"), comment, symbol("format"), symbol(format), symbol("default"), def));
+         }
+
+
+   options = dTools.merge(options, {
+      'description' : undefined,
+      'properties' : 
+   });
+}
+
+
+
 function Behavior() {
    selected = new DeferredSet();
    description = null;
