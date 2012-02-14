@@ -30,8 +30,11 @@ Create a behavior programmatically
 
    dTools.behavior({
       description : 'Trace on mouse clicks'
-   }, {
-      mouseName : { 'comment' : 'Name your mouse', 'default' : 'Algernon' }
+   })
+   .addParameter({
+      'name' : 'mouseName',
+      'comment' : 'Name your mouse' ,
+      'default' : 'Algernon'
    })
    .addHandler('mouseUp', function(context) {
       trace(context.mouseName + ' was released');

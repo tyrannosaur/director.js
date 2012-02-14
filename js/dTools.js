@@ -360,36 +360,34 @@
    }
 
    // A Behavior
-   function Behavior(options, properties) {
+   function Behavior(options) {
       merge(options, {
          'description' : 'No description was given',
-         'handlers' : {}
+         'handlers' : {},
+         'parameters' : {}
       });      
-      
-      if (valid(properties)) {
-         var converted = {};
-         each(properties, function(key, opts) {
-            merge(opts, {
-               'comment' : 'No comment was given',
-               'default' : '',
-               'format' : 'string'
-            });
-            opts.format = nativeSymbol(opts.format);
-            converted[key] = dTools.propList(opts);
-         });
-         properties = dTools.propList(converted);
-      }
-      else {
-         properties = dTools.propList([]);
-      }
       
       var handlers = {
          'getBehaviorDescription' : function() { 
             return options.description;
          },
          'getPropertyDescriptionList' : function() { 
-            return properties; 
+            return options.parameters; 
          }
+      };
+      
+      this.addParameter = function(pOpts) {
+         var name = pOpts.name;
+         if (valid(pOpts) && name) {
+            delete pOpts.name;
+            options.parameters[name] = pOpts;
+         }
+         return this;
+      };
+      
+      this.removeParameter = function(name) {
+         delete options.parameters[name];
+         return this;
       };
       
       this.addHandler = function(name, func) {
@@ -402,6 +400,25 @@
          return this;
       };
       
+      // Add parameters
+      if (valid(options.parameters)) {
+         var converted = {};
+         each(options.parameters, function(key, opts) {
+            merge(opts, {
+               'comment' : 'No comment was given',
+               'default' : '',
+               'format' : 'string'
+            });
+            opts.format = nativeSymbol(opts.format);
+            converted[key] = dTools.propList(opts);
+         });
+         options.parameters = dTools.propList(converted);
+      }
+      else {
+         options.parameters = dTools.propList([]);
+      }
+      
+      // Add handlers
       each(options.handlers, function(key, val) {
          this.addHandler(key, val);
       }, this);
@@ -425,8 +442,7 @@
       'description'  a description displayed in the Behaviors info panel 
       'handlers'     an object whose keys are Director handler names and
                      values are functions for those handlers.
-
-      Properties (configurable from the Behaviors panel) can also be provided
+      'parameters'   variables configurable from the Behaviors panel      
    */
    dTools.behavior = function(options, properties) {      
       return new Behavior(options, properties);
