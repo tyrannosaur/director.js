@@ -16,8 +16,8 @@ to run in Director. This is not a replacement for them, although it includes som
 
 There are two choices:
 
-+ Import the `dTools.cst` cast file into your Director project
-+ Copy and paste the text of each JavaScript file into a new movie script with JavaScript syntax.
+1. Import the `dTools.cst` cast file into your Director project
+1.  Copy and paste the text of each JavaScript file into a new movie script with JavaScript syntax.
    
 That's it!
 
