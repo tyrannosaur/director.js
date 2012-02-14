@@ -1,36 +1,71 @@
-/* Add this in case it doesn't exist */
-if (!Array.prototype.filter)
-{
-  Array.prototype.filter = function(fun /*, thisp */)
-  {
-    "use strict";
+/* dTools - a Javascript wrapper for Adobe Director
+   
+   This library attempts to wrap some of the inconsistencies and common pitfalls
+   of ECMAScript in Adobe Director. New functionality is also provided, such as
+   timers and wrapping of network requests and file i/o.
+   
+   The only requirement is a JSON implementation. dTools includes the standard
+   one available at:
+   https://github.com/douglascrockford/JSON-js/blob/master/json2.js
+        
+   ---
+   
+   The MIT License (MIT)
 
-    if (this === void 0 || this === null)
-      throw new TypeError();
+   Copyright (c) 2011 Charlie Liban
 
-    var t = Object(this);
-    var len = t.length >>> 0;
-    if (typeof fun !== "function")
-      throw new TypeError();
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
 
-    var res = [];
-    var thisp = arguments[1];
-    for (var i = 0; i < len; i++)
-    {
-      if (i in t)
-      {
-        var val = t[i]; // in case fun mutates this
-        if (fun.call(thisp, val, i, t))
-          res.push(val);
-      }
-    }
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
 
-    return res;
-  };
-}
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+   THE SOFTWARE.
+*/
+(function() {
 
-(function() {   
+   if (!JSON) throw new Error('JSON.js must be included to use dTools');
 
+   var here = this;
+
+   // Native Director functions
+   var nativeMember = member,
+       nativeSprite = sprite.
+       nativeSymbol = symbol,
+       nativePropList = propList,
+       nativeXtra = xtra;
+   
+   // Native Director event handler names
+   var nativeHandlers = [   
+      "getBehaviorDescription",
+      "getPropertyDescriptionList",
+      "mouseUp",
+      "mouseDown",
+      "prepareMovie",
+      "prepareFrame",
+      "beginSprite",
+      "startMovie",
+      "stepFrame",
+      "enterFrame",
+      "exitFrame",
+      "endSprite",
+      "stopMovie"
+   ];
+   
+   var dTools = function() {};
+   dTools.VERSION = '0.1';
+
+   /* An Event data structure. */
    function Event(type, data, dispatcher, target) {
       this.type = type;
       this.data = data || {};
@@ -38,202 +73,79 @@ if (!Array.prototype.filter)
       this.target = target;
    };
 
-   /* A deferred set */   
-   function DeferredSet() {
-      var currentItems = [];
-      var mutators = [];
-            
-      // TODO: Proxy this
-      this.items = currentItems;
-      
-      /* Select the ith item from the current items */
-      this.select = function(i) {
-         mutators.push(function() {
-            currentItems = currentItems[i];
-         });
-      };
-      
-      /* Call the mutator function with the current items */
-      this.mutate = function(func) {
-         if (typeof func !== 'function')
-            throw new TypeError();
-            
-         mutators.push(function() { 
-               func.apply(top, arguments.slice(1));
-         });
-      };
-      
-      /* Evaluate all mutators. */
-      this.eval = function() {
-         // Simply evaluate all the mutators. The results will be available in items()
-         if (arguments.length == 0) {
-//            dTools.forEach(mutators, 
-         }
-         // Otherwise call the given function and pass in the mutated items
-         else if (arguments.length == 1 && typeof arguments[0] === 'function') {
-//            arguments[0].call(
-         }
-         else {
-            throw new TypeError();
-         }
-      }      
+   /* Returns undefined if an array has 0 elements, the first element if it 
+      has 1 element and the array otherwise.
+   */
+   function unpack(arr) {   
+      if (arr.length == 0) return;
+      else if (arr.length == 1) return arr[0];
+      else return arr;   
    }
-   
-   /* Top-level scope */
-   var top = this;
 
-   /* Previous $d binding */   
-   var _$d = top['$d'];
-
-   var dTools = function() {
-      this.selected = new DeferredSet();
-   }
-   
-   dTools.version = '1.0';
-
-   /* Selectors */
-
-   /* Get or set attributes.
-      If attributes are set, then the current dTools object is returned.
-      Getting attributes returns the value of the attribute on the first
-      item in the selection.
-      */
-   dTools.prototype.attr = function() {
-      // TODO
+   /* Include an xtra or throw an error */
+   function getXtra(name, caller) {
+      var x = new nativeXtra(name);
+      if (!x) throw new Error(
+         name + ' xtra must be included' + (caller ? (' to use ' + caller) : ''));
+      return x;
    };
 
-   /* Select a subset of the items in the selection. */
-   dTools.prototype.select = function() {
-      // TODO
+   // Core functions.
+   // This may look suspiciously Underscorish. I referenced Underscore for code style,
+   // but otherwise there are only so many ways to write iterators that take in context.   
+   
+   /* Whether a value is valid */
+   var valid = dTools.valid = function(obj) {
+      return (obj !== null) && (obj !== undefined) && (obj !== false);
+   };  
+   
+   /* Whether an object has a property */
+   var has = dTools.has = function(obj, key) {
+      return valid(obj) && obj.hasOwnProperty(key);
    };
    
-   /* Get the first item in the selection. */
-   dTools.prototype.first = function() {
-     return this.selected.select(0);
-   };
-
-   /* Get the last item in the selection. */
-   dTools.prototype.last = function() {
-     return this.selected.select(-1);
-   };
-   
-   /* Get the nth item in the selection. */
-   dTools.prototype.nth = function(n) {
-     return this.selected.select(n);
-   };   
-   
-   /* Attach an event listener and callback to all items in the selection
-      that are sprites. Director only supports custom events on sprites.
-      
-      For Director behaviours, use dTools.behavior
+   /* Iterates over an iterable, calling function on each item's key and value.
+      If the function returns false, iteration is stopped.
    */
-   dTools.prototype.bind = function(options) {
-      // TODO
-   };
-   
-   dTools.prototype.unbind = function(options) {
-      // TODO
-   }
-   
-   /* Mutators */
-   
-   /* Applies the given function 'func' for each item in the selection. 
-   Returns the current dTools object.
-   */
-   dTools.prototype.forEach = function(func) {
-      this.selected.mutate(dTools.forEach, this.selected.items, func);
-      return this;
-   };
-   
-   /* Map each item in the selection with the given function 'func'. 
-   Returns the array of results.
-   */
-   dTools.prototype.map = function(func) {
-      return this.selected.mutate(dTools.map, this.selected.items, func);
-   };
-   
-   /* Function programming functions */
-         
-   /* We all know what map does.
-   */
-   dTools.map = function(iter, func) {   
-      var ret = [];
-      
-      if (typeof func !== 'function')
-         throw new TypeError();
-         
-      if (typeof iter === 'array') {
-         // Ensure termination
-         var len = iter.length >>> 0;
-         for (var i = 0; i < len; i++) {
-            if (i in iter)
-               ret.push(func.call(top, i, iter[key]));
-         }
+   var each = dTools.each = function(iter, func, context) {      
+      if (iter === null) return;
+      if (typeof iter === 'array') {      
+            var len = iter.length >>> 0;
+            for (var i = 0; i < len; i++) {
+               if (has(iter, i) && func.call(context, i, iter[i]) === false) return;               
+            }
       }
       else {
          for (var key in iter) {
-            if (key in iter)
-               ret.push(func.call(top, key, iter[key]));
+            if (has(iter, key) && func.call(context, key, iter[key]) === false) return;                     
          }
       }
-      return ret;
    };
 
-   /* Calls each function 'func' for each key, value pair in iterable 'iter'. 
-      Returns the iterable.
+   /* Iterates over an iterable, calling function on each item's key and value.
+      Returns an array containing the results of each function call.
    */
-   dTools.forEach = function(iter, func) {
-      if (typeof func !== 'function')
-         throw new TypeError();
-         
-      if (typeof iter === 'array') {
-         // Ensure termination
-         var len = iter.length >>> 0;
-         for (var i = 0; i < len; i++) {
-            if (i in iter)
-               func.call(null, i, iter[key]);
-         }
-      }
-      else {
-         for (var key in iter) {
-            if (key in iter)
-               func.call(null, key, iter[key]);
-         }
-      }   
-      return iter;
-   };
-
-   /* Applies the function 'func' to each key and value in the iterable 'iter'.
-      If any function returns true, 'any' returns true. Otherwise false.
-   */
-   dTools.any = function(iter, func) {   
-      return dTools.map(iter, func).some(function(e, i, a) { return e; });   
-   };
-
-   /* Applies the function 'func' to each key and value in the iterable 'iter'.
-      If all functions return true, 'all' returns true. Otherwise false.
-   */
-   dTools.all = function(iter, func) {
-      return dTools.map(iter, func).every(function(e, i, a) { return e; });
-   };
-
-   /* Produces a list of key/value pairs from an object.
+   var map = dTools.map = function(iter, func, conext) {
+      var results = [];
+      if (iter === null) return results;
+      each(iter, function(key, val) {
+         results.push(func.call(context, key, val));
+      });
+      return results;
+   }
+   
+   /* Produces a list of key/value pairs from an object.         
       
-      For instance:
-         { key1 : val1, key2 : val2, ... }
-      becomes
-         [key1, val1, key2, val2, ...]
-         
-      If an array is given, returns the array. All other values
-      raise an exception.
+      { key1 : val1, key2 : val2, ... } 
+      becomes 
+      [key1, val1, key2, val2, ...]
+      
+      If an array is given, returns the array. All other values raise an exception.
    */
-   dTools.itemize = function(iter) {           
+   var itemize = dTools.itemize = function(iter) {           
       if (typeof iter === 'object') {
          var results = [];
-         for (var key in iter) {
-            if (key in iter)
-               results.push(key, iter[key]);               
-         }      
+         each(iter, function(key, val) { results.push(key, val); });         
          return results;
       }
       else if (typeof iter === 'array') {
@@ -244,111 +156,30 @@ if (!Array.prototype.filter)
       }
    };
    
-   /* Zips two or more arrays. If the arrays are not the same length, 'undefined'
-      is inserted.
+   /* Shallow merge two iterables, mutating the first one. 
+      Returns 'iter' with any value found in 'defaults' if that value
+      is not already in 'iter'. 
    */
-   dTools.zip = function() {      
-   };
-   
-   /* Generate a range of numbers. Just like xrange in Python (returns an iterator) */
-   dTools.range = function(start, end, step) {     
-   };
-   
-   /* Enumerate an iterable */
-   dTools.enumerate = function(iter) {
-   };
-   
-   /* Memoize the function, returning a cached (memoized) result given
-      the same function and parameters.        
-   */
-   dTools.memoize = function(func) {
-      var memo = {};            
-      return function() {
-         var hash = dTools.map(arguments, function(key, val) { return val.toString(); });
-         if (hash in memo)
-            return memo[hash];
-         return memo[hash] = func.apply(this, arguments);
-      };
-   };
-   
-   /* Runs the function n times, after which the last
-      result is always returned.
-   */
-   dTools.limit = function(func, n) {
-      var run = 0;
-      var memo;      
-      return function() {
-         if (run > n)
-            return memo;
-         run += 1;
-         return memo = func.apply(this, arguments);
-      };
-   };
-   
-   /* Runs the function once, after which the same value
-      is returned.
-   */
-   dTools.once = function(func) {
-      return dTools.limit(func, 1);
-   };
-   
-   /* Shallow merge two objects. Returns 'obj' with any value found in
-      defaults if that value is not already in 'obj'. 
-   */
-   dTools.merge = function(obj, defaults) {
-      if (typeof defaults !== 'object' || typeof obj !== 'object')
-         throw new TypeError();
-
-      dTools.forEach(defaults, function(key, val) {
-         if (!obj.hasOwnProperty(key))
-            obj[key] = val;
+   var merge = dTools.merge = function(iter, defaults) {
+      if (!iter) iter = {};
+      each(defaults, function(key, val) {
+         if (!has(iter, key)) iter[key] = val;
       });
-      return obj;
-   };
+      return iter;
+   };   
 
-   /* Deep merge two objects 'defaults' and 'obj' iteratively by copying a value
-      in 'defaults' to 'obj' if it does not exist in 'obj'. Returns 'obj'.
-      
-      Only objects, arrays, numbers and literals are copied by value. Everything
-      else is copied by reference.
-      
-      There is no cycle detection, so pass in simple objects only.      
-   */
-   dTools.deepMerge = function(obj, defaults) {
-      if (typeof defaults !== 'object' || typeof obj !== 'object')
-         throw new TypeError();
-       
-      var stack = [];
-      var def_cur = defaults;
-      var obj_cur = obj;
-  
-      // Breadth-first search
-      while (stack.length > 0) {
-         for (var key in cur) {
-            var val = cur[key];
-            if (typeof val === 'object' || typeof val == 'array') {
-               if (!(key in obj_cur))
-                  stack.push(key);
-            }
-            else {
-               if (!(key in obj_cur))
-                  obj_cur[key] = val;
-            }
-         }
-      }
-   };
-       
    /* Returns a function to generate unique keys from a pool.
+      Source: https://github.com/tyrannosaur/keypool
+   
       Example:
          var pool = dTools.keyPool();
-         pool.get();                      // returns 0
-         pool.get();                      // returns 1
-         pool.del(0);                     // deletes 0
-         pool.add('some value');          // returns 0, since it has been freed and
-                                          // also adds 
-         pool[0];                         
+         pool.newKey();                   // returns 0, which is allocated immedately
+         pool.newKey();                   // returns 1
+         pool.delKey(0);                  // deletes 0
+         pool.set('some value');          // assigns a value and returns its key                                    
+         pool.get(0);                     // gets the value with key 0
    */
-   dTools.keyPool = function() {
+   var keyPool = dTools.keyPool = function() {
       var data = {};
       var free = [[0, Infinity]];       /* Contains ranges of free ids */      
       
@@ -419,33 +250,49 @@ if (!Array.prototype.filter)
       }
    }
 
-   /* Director-specific functions */
+   // Keypool for the unique ids
+   var uniqueKP = keyPool();
 
+   /* Get a unique id, backed by a keyPool */
+   var unique = dTools.unique = uniqueKP.get;   
+
+   /* Create an RFC4122 version 4 (random) UUID.
+      Source: http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
+   */
+   var uuid4 = dTools.uuid4 = function() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+         var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+         return v.toString(16);
+      });
+   }
+
+   // Director-specific functionality.
+   
    /* Converts the object to a proplist */
    dTools.propList = function(obj) {
-      return propList.apply(top, dTools.itemize(obj));
+      return nativePropList.apply(here, itemize(obj));
    };
 
-   /* Selects members by name */
+   /* Returns members with the given names. */
    dTools.member = function() {
-      return dTools(
-         dTools.map(arguments, function(key, val) {
-            return member(val);
-         }).filter(function(e, i, a) {
-            return e.type !== symbol('empty');
-         })
-      );
+      var m = map(arguments, function(key, val) { 
+         return nativeMember(val); 
+      });
+      var f = filter(m, function(key, val) {
+         return val.type !== symbol('empty');
+      });      
+      return unpack(f);        
    }
-   
+      
    /* Selects sprites by name */
    dTools.sprite = function() {
-      return dTools(
-         dTools.map(arguments, function(key, val) {
-            return sprite(val);
-         }).filter(function(e, i, a) {
-            return e.type !== symbol('empty');
-         })
-      );   
+      var m = map(arguments, function(key, val) { 
+         return nativeSprite(val); 
+      });
+      var f = filter(m, function(key, val) {
+         return val.type !== symbol('empty');
+      });      
+      return unpack(f);          
    }
    
    /* Selects the highlighted member of a radio group.
@@ -453,28 +300,93 @@ if (!Array.prototype.filter)
       or member name strings.
    */
    dTools.radio = function() {
-      return dTools(
-         dTools.map(arguments, function(key, val) {
-            if (typeof val == 'number')
-               return sprite(val);
-            else if (typeof val == 'string')
-               return member(val);
-            else
-               return val;
-         })
-         .filter(function(e, i, a) {
-            return (e !== undefined) && (e !== null) &&
-                   (e.type !== symbol('empty')) && e.hilight;
-         })
-      );
+      var m = map(arguments, function(key, val) {
+         if (typeof val == 'number') return nativeSprite(val);
+         else if (typeof val == 'string') return nativeMember(val);
+         else return val;
+      });
+      var f = filter(m, function(key, val) {
+         return valid(val) && (val.type !== nativeSymbol('empty')) && e.hilight;
+      });
+      return unpack(f);
    }
 
-   /* Active timers */
+   // A Behavior
+   function Behavior(options, properties) {
+      merge(options, {
+         'description' : 'No description was given',
+         'handlers' : {}
+      });      
+      
+      if (valid(properties)) {
+         var converted = [];
+         each(properties, function(key, opts) {
+            merge(opts, {
+               'comment' : 'No comment was given',
+               'default' : '',
+               'format' : 'string'
+            });
+            
+            converted.push(nativeSymbol(key), dTools.propList(opts));
+         });
+         properties = dTools.propList(converted);
+      }
+      else {
+         properties = dTools.propList([]);
+      }
+      
+      var handlers = {
+         'getBehaviorDescription' : function() { 
+            return options.description;
+         },
+         'getPropertyDescriptionList' : function() { return properties; }
+      };
+      
+      this.addHandler = function(name, func) {
+         if (typeof func === 'function') handlers[name] = func;
+      };
+      
+      this.removeHandler = function(name) {
+         delete handlers[name];
+      };
+      
+      each(options.handlers, function(key, val) {
+         this.addHandler(key, val);
+      }, this);
+      
+      var bound = false;
+      
+      // Attach this globally to the current script. Can only be done once!
+      this.bind = function(context) {
+         if (bound) throw new Error('This Behavior has already been bound to a script');
+         each(handlers, function(key, val) { 
+            context[key] = val; 
+         });
+         bound = true;
+      };
+   }   
+   
+   /* Creates a new Behavior; behaviors are attached to non-script cast members
+      and contain callback functions for Director events.
+      
+      Options are:
+      'description'  a description displayed in the Behaviors info panel 
+      'handlers'     an object whose keys are Director handler names and
+                     values are functions for those handlers.
+
+      Properties (configurable from the Behaviors panel) can also be provided
+   */
+   dTools.behavior = function(options, properties) {      
+      return new Behavior(options, properties);
+   };   
+
+   // Active timers
    var timerPool = dTools.keyPool();
 
    /* Returns a timer that calls a function after the given duration has
       elapsed.
       
+      Options are:
       'duration'     : A duration in seconds.
       'count'        : The number of times to repeated call the timer function.
                        If 0, undefined or null is given, the timer will run forever.
@@ -518,25 +430,26 @@ if (!Array.prototype.filter)
       timeoutWrapper(function(timer) {
          timer.currentCount += 1;
          options.callback.apply(top, [new Event('timer', {}, timer)]);
-
-         if (timer.currentCount > timer.count)
-            timer.stop();
+         if (timer.currentCount > timer.count) timer.stop();
       }, options.duration);
    };
 
-   /* Binds callbacks to a network request. 
+   // Network I/O
+   dTools.net = {};
 
-      'uri'        : The URI to load
+   /* Retrieves the contents of the given URL.
 
+      Options are:
       'method'     : The HTTP method, one of 'post' or 'get'. Defaults to 'get'
       'data'       : Any post data.
       'dataType'   : The type of data expected in the response. Defaults to 'json'
-                     'json' - A JSON object is constructed from the body and passed to the 'complete' handler
+                     'json' - A JSON object is constructed from the body and passed to 
+                              the 'complete' handler
                      'text' - The body text is passed to the 'complete' handler as plain text
       'complete'   : Callback for when the request has completed      
       'error'      : Callback if there was an error with the request
    */
-   dTools.net = function(uri, options) {
+   dTools.net.open = function(uri, options) {
       if (typeof options !== 'object')
          throw new ValueError();
 
@@ -559,23 +472,112 @@ if (!Array.prototype.filter)
          'callback' : function(event) {
             if (netDone(netID) == 1) {
                if (typeof options.complete === 'function')
-                  options.complete.call(top, new Event('net', netTextResult(netID)));
+                  options.complete.call(
+                     here, 
+                     new Event('net.open', netTextResult(netID)));
                if (netError(netID) != 'OK' && typeof options.error === 'function')
-                  options.error.call(top, new Event('net', {'error' : netError(netID)}));
+                  options.error.call(
+                     here, 
+                     new Event('net.open', {'error' : netError(netID)}));
                event.dispatcher.stop();
             }
           }
       });      
-   };
+   };   
 
-   /* Like Underscore's noConflict. Returns the dTools
-      object and restores $d to its original value.
-   */   
-   dTools.noConflict = function() {    
-      $d = _$d;
-      return dTools;
+   // File I/O
+   dTools.file = {};
+   
+   /* A File object, which can be written to and read from as best as
+      is possible in Director.
+   */
+   function File(path, xtra) {
+      this.read = function() {
+         return xtra.readChar();
+      }
+      
+      this.readLines = function() {
+         this.setPosition(0);
+         return xtra.readFile().split(/[\r\n]/);
+      }
+      
+      this.readLine = function() {
+         return xtra.readLine();
+      }
+   
+      this.write = function(str) {
+         xtra.writeString(str);
+      }
+      
+      this.close = function() {
+         xtra.closeFile();
+      }
+      
+      this.length = function() {
+         return xtra.getLength();
+      }
+      
+      this.getPosition = function() {
+         return xtra.getPosition();
+      }
+      
+      this.setPosition = function(pos) {
+         return xtra.setPosition(pos);
+      }
    };
-
-   /* Alias $d as a global, much like jQuery's $ */       
-   top['dTools'] = top['$d'] = dTools;
-})();   
+     
+   /* See if a file exists */
+   dTools.file.exists = function(path) {
+      var xtra = getXtra('fileio', 'dTools.file.exists');
+      var exists;      
+      
+      xtra.openFile(path, 0)
+      exists = xtra.status() == 0;      
+      xtra.closeFile();
+      return exists;      
+   };
+   
+   /* Open a path with the given mode and return an object that
+      can be written to and read from.
+      
+      Modes are 'w' for write, 'r' for read and 'a' for append (to the end).
+      Suffing '+' to the mode allows reading and writing at the same time.         
+   */
+   dTools.file.open = function(path, mode) {   
+      var xtra = getXtra('fileio', 'dTools.file.open');      
+      var mode = /^\s*([rwa])(\+){0,1}\s*$/i.exec(mode);
+      if (!mode) throw new Error(
+         'valid modes for dTools.file.open are r, w, a, r+, w+ and a+');
+      
+      var type = mode[1],
+          rw = Boolean(mode[2]);
+      
+      function open() {          
+         if (rw) xtra.openFile(path, 0);         
+         else if (type == 'r') xtra.openFile(path, 1);
+         else xtra.openFile(path, 2);         
+      }
+   
+      open();
+      var status = xtra.status();
+      // Create the file if it doesn't exist
+      if (type != 'r' && status == -37) {
+         xtra.createFile(path);
+         open();
+      }      
+      else if (status == 0) {
+      }
+      else {
+         throw new Error(path + ' ' + xtra.error(xtra.status()));
+      }
+      
+      if (type == 'a')
+         xtra.setPosition(xtra.getLength());               
+   
+      return new File(path, xtra);
+   }
+   
+   // Assign to the global object
+   this.dTools = dTools;
+   
+}).call(this);
