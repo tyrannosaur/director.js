@@ -1,4 +1,4 @@
-/* dTools - a Javascript wrapper for Adobe Director
+/* dTools - an ECMAScript wrapper for Adobe Director
    
    This library attempts to wrap some of the inconsistencies and common pitfalls
    of ECMAScript in Adobe Director. New functionality is also provided, such as
@@ -436,11 +436,12 @@
    var timerPool = dTools.keyPool();
 
    /* Returns a timer that calls a function after the given duration has
-      elapsed.
+      elapsed. This is similar to setTimeout in JavaScript and is called
+      immediately after this function returns.
       
       Options are:
       'duration'     : A duration in seconds.
-      'count'        : The number of times to repeated call the timer function.
+      'count'        : The number of times to repeatedly call the timer function.
                        If 0, undefined or null is given, the timer will run forever.
       'callback'     : A callback that is called after the duration has elapsed.
    */
@@ -451,11 +452,9 @@
       if (typeof options.duration !== 'number')
          throw new ValueError();
 
-      options = dTools.merge(options, {
+      dTools.merge(options, {
          count : Infinity
       });   
-
-      options.count = !options.count ? Infinity : options.count;
 
       function Timer(key) {
         this.currentCount = 0;
@@ -474,14 +473,14 @@
          var key = timerPool.newKey().toString();
          var timer = new Timer(key);  
          return timerPool.set(key, new timeout(key, duration * 1000, 'callback', {
-            callback: function() { callback.call(top, timer); }
+            callback: function() { callback.call(here, timer); }
          }));
          return timer;
       };
       
       timeoutWrapper(function(timer) {
          timer.currentCount += 1;
-         options.callback.apply(top, [new Event('timer', {}, timer)]);
+         options.callback.apply(here, [new Event('timer', {}, timer)]);
          if (timer.currentCount > timer.count) timer.stop();
       }, options.duration);
    };
