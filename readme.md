@@ -4,7 +4,7 @@ This library attempts to wrap some of the inconsistencies and common pitfalls
 of ECMAScript in Adobe Director. New functionality is also provided, such as
 timers and wrapping of network requests and file i/o.
 
-Note that popular JavaScript libraries such as [http://documentcloud.github.com/underscore/](Underscore) and [http://jquery.org](jQuery) can be adapted
+Note that popular JavaScript libraries such as [Underscore](http://documentcloud.github.com/underscore) and [jQuery](http://jquery.org) can be adapted
 to run in Director. This is not a replacement for them, although it includes some of their functional programming functionality.
 
 ## Requirements
