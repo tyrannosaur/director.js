@@ -40,7 +40,7 @@
 
    // Native Director functions
    var nativeMember = member,
-       nativeSprite = sprite.
+       nativeSprite = sprite,
        nativeSymbol = symbol,
        nativePropList = propList,
        nativeXtra = xtra;
@@ -65,6 +65,28 @@
    var dTools = function() {};
    dTools.VERSION = '0.1';
 
+   Array.prototype.filter = function(fun /*, thisp */)  {  
+     if (this == null)  
+       throw new TypeError();  
+  
+     var t = Object(this);  
+     var len = t.length >>> 0;  
+     if (typeof fun != "function")  
+       throw new TypeError();  
+  
+     var res = [];  
+     var thisp = arguments[1];  
+     for (var i = 0; i < len; i++) {  
+      if (i in t) {  
+         var val = t[i]; // in case fun mutates this  
+         if (fun.call(thisp, val, i, t))  
+           res.push(val);  
+       }  
+     }  
+  
+     return res;  
+   };  
+  
    /* An Event data structure. */
    function Event(type, data, dispatcher, target) {
       this.type = type;
@@ -109,7 +131,7 @@
    */
    var each = dTools.each = function(iter, func, context) {      
       if (iter === null) return;
-      if (typeof iter === 'array') {      
+      if (iter.length == +iter.length) {      
             var len = iter.length >>> 0;
             for (var i = 0; i < len; i++) {
                if (has(iter, i) && func.call(context, i, iter[i]) === false) return;               
@@ -125,14 +147,33 @@
    /* Iterates over an iterable, calling function on each item's key and value.
       Returns an array containing the results of each function call.
    */
-   var map = dTools.map = function(iter, func, conext) {
+   var map = dTools.map = function(iter, func, context) {
       var results = [];
       if (iter === null) return results;
       each(iter, function(key, val) {
          results.push(func.call(context, key, val));
       });
       return results;
-   }
+   };
+   
+   /* Filter over an iterable, returning a mutated shallow copy of the original.
+      The test function does not need to return a strictly false result.
+      
+      Array
+   */
+   var filter = dTools.filter = function(iter, test, context) {
+      if (iter.length == +iter.length) {
+        return iter.filter(function(e, i, a) {
+          return test(i, e);
+        }, context);
+      }
+   
+      var results = {};
+      each(iter, function(key, val) {         
+         if (test.call(context, key, val)) results[key] = val;
+      });      
+      return results;
+   };
    
    /* Produces a list of key/value pairs from an object.         
       
@@ -142,14 +183,14 @@
       
       If an array is given, returns the array. All other values raise an exception.
    */
-   var itemize = dTools.itemize = function(iter) {           
-      if (typeof iter === 'object') {
+   var itemize = dTools.itemize = function(iter) {   
+      if (iter.length == +iter.length) {
+         return iter;
+      }
+      else if (typeof iter == 'object') {
          var results = [];
          each(iter, function(key, val) { results.push(key, val); });         
          return results;
-      }
-      else if (typeof iter === 'array') {
-         return iter;
       }
       else {
          throw new TypeError();
@@ -269,8 +310,15 @@
    // Director-specific functionality.
    
    /* Converts the object to a proplist */
-   dTools.propList = function(obj) {
-      return nativePropList.apply(here, itemize(obj));
+   dTools.propList = function(iter) {
+      var results = [];
+      if (iter.length == +iter.length)
+         results = iter;      
+      else if (typeof iter == 'object')
+         each(iter, function(key, val) { results.push(nativeSymbol(key), val); });                        
+      else
+         throw new TypeError();      
+      return nativePropList.apply(here, results);
    };
 
    /* Returns members with the given names. */
@@ -319,15 +367,15 @@
       });      
       
       if (valid(properties)) {
-         var converted = [];
+         var converted = {};
          each(properties, function(key, opts) {
             merge(opts, {
                'comment' : 'No comment was given',
                'default' : '',
                'format' : 'string'
             });
-            
-            converted.push(nativeSymbol(key), dTools.propList(opts));
+            opts.format = nativeSymbol(opts.format);
+            converted[key] = dTools.propList(opts);
          });
          properties = dTools.propList(converted);
       }
@@ -339,15 +387,19 @@
          'getBehaviorDescription' : function() { 
             return options.description;
          },
-         'getPropertyDescriptionList' : function() { return properties; }
+         'getPropertyDescriptionList' : function() { 
+            return properties; 
+         }
       };
       
       this.addHandler = function(name, func) {
-         if (typeof func === 'function') handlers[name] = func;
+         if (typeof func == 'function') handlers[name] = func;
+         return this;
       };
       
       this.removeHandler = function(name) {
          delete handlers[name];
+         return this;
       };
       
       each(options.handlers, function(key, val) {
@@ -450,9 +502,6 @@
       'error'      : Callback if there was an error with the request
    */
    dTools.net.open = function(uri, options) {
-      if (typeof options !== 'object')
-         throw new ValueError();
-
       options = dTools.merge(options, {      
          method : 'get',
          dataType : 'json',
