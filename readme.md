@@ -60,4 +60,4 @@ Add a delayed function call
 
 ## Future plans
 
-`dTools` may become an Xtra, due to fundemental instabilities in Director's scripting engine.
+`dTools` may become an Xtra, due to fundamental instabilities in Director's scripting engine.
