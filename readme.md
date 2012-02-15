@@ -23,7 +23,10 @@ That's it!
 
 ## Some examples
 
-Create a behavior programmatically
+<del>Create a behavior programmatically</del>
+Sadly, this may crash Director randomly. I suspect that scripts are loaded in a random fashion
+and if there's an error at startup (i.e. `dTools` is not in the global object), then Director
+is left in an unstable state.
 
 ```javascript
    if (!dTools) throw new Error('dTools not found!');
