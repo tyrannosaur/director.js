@@ -50,14 +50,10 @@ Add a delayed function call
 ```javascript
    dTools.timer({
       duration : 0.5,
-      count : 0,      
+      count : Infinity,      
       callback : function(event) {
          var t = event.dispatcher;
          dTools.member('message').text = (t.duration * t.currentCount) + ' seconds have elapsed';
       }
    });
-```   
-
-## Future plans
-
-`dTools` may become an Xtra, due to fundamental instabilities in Director's scripting engine.
+```
