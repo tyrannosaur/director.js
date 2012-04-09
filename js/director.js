@@ -42,11 +42,11 @@ String.prototype.trim = function() {
 };
 
 /* An Event data structure. */
-function Event(type, data, dispatcher, target) {
+function Event(type, data, dispatcher, error) {
    this.type = type;
    this.data = data || {};
-   this.dispatcher = dispatcher;
-   this.target = target;
+   this.dispatcher = dispatcher;   
+   this.error = error;
 };
 
 var exports = {},
@@ -182,7 +182,7 @@ exports.merge = function(iter, defaults) {
       var pool = exports.keyPool();
       pool.newKey();                   // returns 0, which is allocated immedately
       pool.newKey();                   // returns 1
-      pool.delKey(0);                  // deletes 0
+      pool.del(0);                  // deletes 0
       pool.set('some value');          // assigns a value and returns its key                                    
       pool.get(0);                     // gets the value with key 0
 */
@@ -236,9 +236,9 @@ exports.keyPool = function() {
          return newKey();
       },    
       'del' : function(key) {
-         var key = parseInt(k);
+         var key = parseInt(key);
          if (key < 0 || key > Infinity || isNaN(key))
-            return delete data[k]; 
+            return delete data[key]; 
 
          var p = Math.floor(Math.random() * free.length);
          var d = 0;
@@ -498,7 +498,7 @@ exports.timer = function(options) {
        var timer = timerPool.get(key);
        if (timer)
          timer.forget();
-       timerPool.delKey(key);
+       timerPool.del(key);
      };
    }
 
@@ -513,7 +513,7 @@ exports.timer = function(options) {
    
    timeoutWrapper(function(timer) {
       timer.currentCount += 1;
-      options.callback.apply(here, [new Event('timer', {}, timer)]);
+      options.callback.apply(here, [new Event('timer', null, timer)]);
       if (timer.currentCount > timer.count) timer.stop();
    }, options.duration);
 };
@@ -529,7 +529,7 @@ exports.net = {};
    Options are:
    'method'     : The HTTP method, one of 'post' or 'get'. Defaults to 'get'
    'data'       : Any post data.
-   'dataType'   : The type of data expected in the response. Defaults to 'json'
+   'type    '   : The type of data expected in the response. Defaults to 'json'
                   'json' - A JSON object is constructed from the body and passed to 
                            the 'complete' handler
                   'text' - The body text is passed to the 'complete' handler as plain text
@@ -539,7 +539,7 @@ exports.net = {};
 exports.net.open = function(uri, options) {
    options = exports.merge(options, {      
       method : 'get',
-      dataType : 'json',
+      type : 'json',
       data : {}
    });
 
@@ -555,14 +555,22 @@ exports.net.open = function(uri, options) {
       'duration' : 0.1,
       'callback' : function(event) {
          if (netDone(netID) == 1) {
-            if (typeof options.complete === 'function')
+            if (typeof options.complete === 'function') {
+               var data;
+               if (options.type == 'json' && _global.JSON)
+                  data = _global.JSON.parse(netTextResult(netID))
+               else
+                  data = netTextResult(netID);
+               
                options.complete.call(
                   here, 
-                  new Event('net.open', netTextResult(netID)));
-            if (netError(netID) != 'OK' && typeof options.error === 'function')
+                  new Event('net.open', data));
+            }
+            if (netError(netID) != 'OK' && typeof options.error === 'function') {
                options.error.call(
                   here, 
-                  new Event('net.open', {'error' : netError(netID)}));
+                  new Event('net.open', null, null, netError(netID)));
+            }
             event.dispatcher.stop();
          }
        }

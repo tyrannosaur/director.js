@@ -485,4 +485,6 @@ function JSON() {
             throw new SyntaxError('JSON.parse');
         };
     }
+    
+    _global.JSON = JSON;
 }());
