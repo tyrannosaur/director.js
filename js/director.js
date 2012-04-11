@@ -133,7 +133,7 @@ exports.filter = function(iter, test, context) {
    if (iter.length == +iter.length) {
       results = [];
       exports.each(iter, function(i, val) {   
-         if (test.call(context, i, e)) results.push(val);
+         if (test.call(context, i, val)) results.push(val);
       });           
    }
    else {
