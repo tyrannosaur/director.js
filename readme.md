@@ -2,10 +2,7 @@
    
 This library attempts to wrap some of the inconsistencies and common pitfalls
 of ECMAScript in Adobe Director. New functionality is also provided, such as
-timers and wrapping of network requests and file i/o.
-
-Note that popular JavaScript libraries such as [Underscore](http://documentcloud.github.com/underscore) and [jQuery](http://jquery.org) can be adapted
-to run in Director. This is not a replacement for them, although it includes some of their functional programming functionality.
+timers, wrapping of network requests and file i/o.
 
 ## Requirements
 
@@ -21,8 +18,7 @@ That's it!
 
 ## One huge caveat
 
-All the proceeding examples have something in common: a global object named `director` is checked, failing silently if null or undefined.
-In order to avoid internal state corruption in Director, the following safeguard should surround all and any code using `director.js`:
+In order to avoid internal state corruption in Director, the following safeguard should surround all code using `director.js`:
 
 ```javascript
    var djs = _global.director;
@@ -33,7 +29,7 @@ In order to avoid internal state corruption in Director, the following safeguard
 
 ## Some examples
 
-Create a behavior programmatically.
+Create a behavior programmatically. No more messing around with getPropertyDescriptionList.
 
 ```javascript
    var djs = _global.director;
@@ -71,7 +67,7 @@ Add a delayed function call.
    }
 ```
 
-Fetch tweets from Twitter and parse the results as JSON  without having to poll for a response!
+Fetch tweets from Twitter and parse the results as JSON without having to poll for a response!
 
 ```javascript
    var djs = _global.director;
@@ -95,3 +91,4 @@ Fetch tweets from Twitter and parse the results as JSON  without having to poll 
          complete : onComplete
       });           
    }
+```
