@@ -2,7 +2,7 @@
    
    This library attempts to wrap some of the inconsistencies and common pitfalls
    of ECMAScript in Adobe Director. New functionality is also provided, such as
-   timers and wrapping of network requests and file i/o.
+   timers, wrapping of network requests and file i/o.
    
    director.js includes a minified version of the standard JSON parser and stringifier from
    https://github.com/douglascrockford/JSON-js/blob/master/json2.js
@@ -60,7 +60,7 @@ var nativeMember = member,
     nativeXtra = xtra,
     nativeFilter = filter;
 
-exports.version = '1.0';
+exports.version = '1.0.1';
 
 /* Returns undefined if an array has 0 elements, the first element if it 
    has 1 element and the array otherwise.
@@ -127,17 +127,21 @@ exports.map = function(iter, func, context) {
    The test function does not need to return a strictly false result.
 */
 exports.filter = function(iter, test, context) {
-   if (!exports.valid(iter)) return [];
+   if (!exports.valid(iter)) return undefined;
+   
+   var results;
    if (iter.length == +iter.length) {
-     return iter.exports.filter(function(e, i, a) {
-       return test.call(context, i, e);
-     });
+      results = [];
+      exports.each(iter, function(i, val) {   
+         if (test.call(context, i, e)) results.push(val);
+      });           
    }
-
-   var results = {};
-   exports.each(iter, function(key, val) {         
-      if (test.call(context, key, val)) results[key] = val;
-   });      
+   else {
+      results = {};
+      exports.each(iter, function(key, val) {         
+         if (test.call(context, key, val)) results[key] = val;
+      });      
+   }
    return results;
 };
 
@@ -277,6 +281,14 @@ exports.uuid4 = function() {
  Director-specific functionality.
  ***/   
 
+/* Tries to determine the type of an object, including Director members and sprites */
+exports.type = function type(obj) {
+   if (obj == null || obj == undefined) return typeof obj;   
+   if (+obj.spriteNum === obj.spriteNum) return 'sprite';
+   else if (obj.member == obj) return 'member';
+   else return typeof obj;
+}
+
 /* Converts the object to a proplist. 
    Arrays will be interpreted as a list of keys and values, like in Lisp.
    
@@ -330,14 +342,12 @@ exports.sprite = function() {
    return unpack(f);          
 }
 
-/* Selects the highlighted member of a radio group.
-   Members of a radio group are given either as sprite numbers
-   or member name strings.
+/* Returns the highlighted members of a radio group, given member names or numbers.   
 */
 exports.radio = function() {
    var m = exports.map(arguments, function(key, val) {
-      if (typeof val == 'number') return exports.selected(val);
-      else if (typeof val == 'string') return exports.selected(val);
+      var type = exports.type(val);
+      if (type == 'sprite' || type == 'member') return exports.isSelected(val);      
       else return val;
    });
    var f = exports.filter(m, function(key, val) {
@@ -351,9 +361,15 @@ exports.radio = function() {
 */
 exports.isSelected = function() {
    var m = exports.map(arguments, function(key, val) {
-      if (typeof val == 'number') return nativeSprite(val).hilite;
-      else if (typeof val == 'string') return nativeMember(val).hilite;
-      else return null;
+      var type = exports.type(val);
+      try {
+         if (type == 'sprite') return nativeSprite(val).member.hilite;
+         else if (type == 'member') return nativeMember(val).hilite;
+      }
+      catch (e) {
+         return null;
+      }
+      return null;
    });      
    return unpack(m);         
 };   

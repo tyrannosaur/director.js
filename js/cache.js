@@ -2,9 +2,9 @@
    Rudimentary caching.
 */
 
-var director = _global.director;
+var djs = _global.djs;
 
-if (director) {
+if (djs) {
    function Cache() {};
 
    function Container(cName, itemName, type, sprite) {
@@ -37,7 +37,7 @@ if (director) {
       if (!caches[cName]) return null;
       
       var results = {};
-      director.each(caches[cName], function(key, val) {
+      djs.each(caches[cName], function(key, val) {
          results[key] = val.getValue();
       });
       return results;
@@ -56,7 +56,7 @@ if (director) {
 
    Cache.restoreCache = function(cName) {          
      if (caches[cName]) {
-       director.map(caches[cName], function(key, val) {
+       djs.map(caches[cName], function(key, val) {
          try {
             if (val === false || val === true)
                nativeMember(key).hilite = val;
@@ -71,7 +71,7 @@ if (director) {
       if (!cName) throw new TypeError();
       Cache.addCache(cName);
       
-      director.merge(options, {
+      djs.merge(options, {
          type : 'string'
       });
       
@@ -88,7 +88,7 @@ if (director) {
 
    Cache.update = function(cName) {
       if (!cName) throw new TypeError();
-      director.map(caches[cName], function(itemName, cont) {
+      djs.map(caches[cName], function(itemName, cont) {
          cont.update();
       });
       return Cache;
