@@ -13,6 +13,7 @@ timers, wrapping of network requests and file i/o.
 
 1. Save `director.js` as cast member 1 and set its type to "Movie Script"
 1. Save the `json.js` and `cache.js` as additional cast members.
+1. (optional) Save any behaviors (under `behaviors`) as cast members.
    
 That's it!
 
