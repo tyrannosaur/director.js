@@ -32,14 +32,8 @@
    THE SOFTWARE.
 */
 
-// Add trim and reverse to String
-String.prototype.reverse = function() {
-   return this.split('').reverse().join('');
-};  
-
-String.prototype.trim = function() {
-   return String(this).replace(/^\s+|\s+$/g, '');
-};
+var MODIFY_PROTOTYPE = false,     // If true, add functions to built-in objects' prototypes. This may break iteration over objects.
+    ENABLE_ERRORS = true;         // If true, throws errors, potentially destabilizing Director. If false, prints errors to the console only.
 
 /* An Event data structure. */
 function Event(type, data, dispatcher, error) {
@@ -60,7 +54,37 @@ var nativeMember = member,
     nativeXtra = xtra,
     nativeFilter = filter;
 
-exports.version = '1.0.1';
+exports.version = '1.0.2';
+
+if (MODIFY_PROTOTYPE) {
+   /* Trim a string of whitespace. */
+   String.prototype.trim = function() {
+      return String(this).replace(/^\s+|\s+$/g, '');
+   };
+
+   /* Reverse a string. */
+   String.prototype.reverse = function() {
+      return this.split('').reverse().join('');
+   };  
+}
+
+/* Throws or prints an error. */
+function error(msg /*, type */) {
+   if (ENABLE_ERRORS) {
+      if (arguments.length == 0)
+         throw new Error();
+      else if (arguments.length == 1)
+         throw new Error(arguments[0]);
+      else
+         throw new arguments[1].call(null, arguments[0]);
+   }
+   else {
+      if (arguments.length == 0)
+         trace('an error has occurred but no message was provided');
+      else
+         trace(arguments[0]);
+   }
+}
 
 /* Returns undefined if an array has 0 elements, the first element if it 
    has 1 element and the array otherwise.
@@ -74,8 +98,8 @@ function unpack(arr) {
 /* Include an xtra or throw an error */
 function getXtra(name, caller) {
    var x = new nativeXtra(name);
-   if (!x) throw new Error(
-      name + ' xtra must be included' + (caller ? (' to use ' + caller) : ''));
+   if (!x)
+      error('director.getXtra: ' + name + ' xtra must be included' + (caller ? (' to use ' + caller) : ''));         
    return x;
 };
 
@@ -163,7 +187,7 @@ exports.itemize = function(iter) {
       return results;
    }
    else {
-      throw new TypeError();
+      error('director.itemize: cannot itemize ' + iter, TypeError);      
    }
 };
 
@@ -228,10 +252,7 @@ exports.keyPool = function() {
          else if (arguments.length == 2) {
             data[arguments[0]] = arguments[1];
             return arguments[0];
-         }
-         else {
-            throw new TypeError();
-         }
+         }         
       },
       'get' : function(key) {
          return data[parseInt(key)];
@@ -302,14 +323,14 @@ exports.type = function type(obj) {
       });
 */
 exports.propList = function(iter) {
-   if (!exports.valid(iter)) throw new TypeError();
+   if (!exports.valid(iter)) throw new TypeError('director.propList: cannot convert ' + iter + ' to propList');
    var results = [];
    if (iter.length == +iter.length)
       results = iter;      
    else if (typeof iter == 'object')
       exports.each(iter, function(key, val) { results.push(nativeSymbol(key), val); });                        
    else
-      throw new TypeError();
+      error('director.propList: cannot convert ' + iter + ' to propList', TypeError);
    return nativePropList.apply(here, results);
 };
 
@@ -426,7 +447,8 @@ function Behavior(options) {
    
    // Attach this globally to the current script. Can only be done once!
    this.bind = function(context) {
-      if (bound) throw new Error('This Behavior has already been bound to a script');
+      if (bound)
+         error('Behavior.bind: this Behavior has already been bound to a script');
       
       // Add parameters
       if (exports.valid(options.parameters)) {
@@ -448,6 +470,7 @@ function Behavior(options) {
                         
       exports.each(handlers, function(key, val) { 
          context[key] = val; 
+         val.name = key;
       });
       bound = true;
    };
@@ -496,10 +519,10 @@ var timerPool = exports.keyPool();
 */
 exports.timer = function(options) {              
    if (typeof options.callback !== 'function')
-      throw new TypeError();         
+      error('director.timer: callback must be a function, not ' + options.callback, TypeError);
 
    if (typeof options.duration !== 'number')
-      throw new TypeError();
+      error('director.time: duration must be a number, not ' + options.duration, TypeError);
 
    exports.merge(options, {
       count : Infinity
@@ -565,7 +588,7 @@ exports.net.open = function(uri, options) {
    else if (options.method == 'post')
       netID = postNetText(uri, exports.propList(options.data));
    else
-      throw new TypeError();  
+      error('director.net.open: ' + options.method + ' is not a valid HTTP method', TypeError);
 
    exports.timer({
       'duration' : 0.1,
@@ -657,8 +680,8 @@ exports.file.exists = function(path) {
 exports.file.open = function(path, mode) {   
    var xtra = getXtra('fileio', 'exports.file.open');      
    var mode = /^\s*([rwa])(\+){0,1}\s*$/i.exec(mode);
-   if (!mode) throw new Error(
-      'valid modes for exports.file.open are r, w, a, r+, w+ and a+');
+   if (!mode)
+      error('director.file.open: valid modes for exports.file.open are r, w, a, r+, w+ and a+');
    
    var type = mode[1],
        rw = Boolean(mode[2]);
@@ -679,7 +702,7 @@ exports.file.open = function(path, mode) {
    else if (status == 0) {
    }
    else {
-      throw new Error(path + ' ' + xtra.error(xtra.status()));
+      error('director.file.open: ' + path + ' ' + xtra.error(xtra.status()));
    }
    
    if (type == 'a')

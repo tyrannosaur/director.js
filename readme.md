@@ -27,6 +27,37 @@ In order to avoid internal state corruption in Director, the following safeguard
    }
 ```
 
+I also recommend that event handler names (mouseUp, mouseDown, etc.) be defined as explicit functions. 
+
+```javascript
+   // Not recommended
+   var djs = _global.director;
+   
+   if (djs) {
+      djs.behavior({
+         description : 'Sometimes throws an error'
+      })
+      .addHandler('mouseUp', function(context) {      
+      })
+      .bind(this);
+   }
+```
+
+```javascript
+   // Recommended
+   var djs = _global.director;
+   
+   if (djs) {
+      djs.behavior({
+         description : 'Sometimes throws an error'
+      })      
+      .bind(this);
+   }
+   
+   function mouseUp(context) {
+   }
+```
+
 ## Some examples
 
 Create a behavior programmatically. No more messing around with getPropertyDescriptionList.
