@@ -28,7 +28,7 @@ In order to avoid internal state corruption in Director, the following safeguard
    }
 ```
 
-I also recommend that event handler names (mouseUp, mouseDown, etc.) be defined as explicit functions. 
+I also recommend that event handler names (mouseUp, mouseDown, etc.) be defined as explicit functions. Rare, but unpredictable errors can occur if event handlers are defined anonymously.
 
 ```javascript
    // Not recommended
@@ -50,7 +50,7 @@ I also recommend that event handler names (mouseUp, mouseDown, etc.) be defined 
    
    if (djs) {
       djs.behavior({
-         description : 'Sometimes throws an error'
+         description : 'Bulletproof'
       })      
       .bind(this);
    }
