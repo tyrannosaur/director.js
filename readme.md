@@ -1,22 +1,21 @@
-# director.js - a Javascript wrapper for Adobe Director
-   
+# director.js
+
+A Javascript wrapper for Adobe Director
+
 This library attempts to wrap some of the inconsistencies and common pitfalls
 of ECMAScript in Adobe Director. New functionality is also provided, such as
-timers, wrapping of network requests and file i/o.
+timers, wrapping of network requests, file i/o and JSON (via [Douglas Crockford's JSON library](https://github.com/douglascrockford/JSON-js/blob/master/json2.js))
 
 ## Requirements
 
-1. Adobe Director 11.5
-1. A JSON implementation. `director.js` includes the [standard one](https://github.com/douglascrockford/JSON-js/blob/master/json2.js)
+Adobe Director 11.5. That's it!
 
 ## Installation
 
-1. Save `director.js` as cast member 1 and set its type to "Movie Script"
+1. Save `director.js` as cast member 1
 1. Save the `json.js` and `cache.js` as additional cast members.
 1. (optional) Save any behaviors (under `behaviors`) as cast members.
    
-That's it!
-
 ## One huge caveat
 
 In order to avoid internal state corruption in Director, the following safeguard should surround all code using `director.js`:
@@ -124,3 +123,7 @@ Fetch tweets from Twitter and parse the results as JSON without having to poll f
       });           
    }
 ```
+
+# Disclaimer
+
+Neither this code nor its author are affiliated or endorsed by Adobe in any way.
