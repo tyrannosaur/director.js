@@ -52,9 +52,6 @@ function isHilighted(spriteNumber) {
    var djs = _global.director;   
    if (djs) {
       var s = djs.sprite(spriteNumber);
-      // If the sprite number does not exist, attempting to access
-      // a property on the resulting sprite object will result in
-      // an uncatchable error
       return s && s.hilite;
    }
    return false;

@@ -1,8 +1,8 @@
 /* director.js - an ECMAScript wrapper for Adobe Director
    
-   This library attempts to wrap some of the inconsistencies and common pitfalls
-   of ECMAScript in Adobe Director. New functionality is also provided, such as
-   timers, wrapping of network requests and file i/o.
+   This library attempts to wrap the inconsistencies, missing documentation and common pitfalls
+   of ECMAScript in Adobe Director. New functionality is also provided, such astimers, wrapping 
+   of network requests and file I/O.
    
    director.js includes a minified version of the standard JSON parser and stringifier from
    https://github.com/douglascrockford/JSON-js/blob/master/json2.js
@@ -11,7 +11,7 @@
    
    The MIT License (MIT)
 
-   Copyright (c) 2011 Charlie Liban
+   Copyright (c) 2012 Charlie Liban
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,7 @@
    THE SOFTWARE.
 */
 
-var MODIFY_PROTOTYPE = false,     // If true, add functions to built-in objects' prototypes. This may break iteration over objects.
-    ENABLE_ERRORS = true;         // If true, throws errors, potentially destabilizing Director. If false, prints errors to the console only.
+var MODIFY_PROTOTYPE = false;     // If true, add functions to built-in objects' prototypes. This may break iteration over objects.
 
 /* An Event data structure. */
 function Event(type, data, dispatcher, error) {
@@ -54,7 +53,7 @@ var nativeMember = member,
     nativeXtra = xtra,
     nativeFilter = filter;
 
-exports.version = '1.0.2';
+exports.version = '1.1.0';
 
 if (MODIFY_PROTOTYPE) {
    /* Trim a string of whitespace. */
@@ -66,24 +65,6 @@ if (MODIFY_PROTOTYPE) {
    String.prototype.reverse = function() {
       return this.split('').reverse().join('');
    };  
-}
-
-/* Throws or prints an error. */
-function error(msg /*, type */) {
-   if (ENABLE_ERRORS) {
-      if (arguments.length == 0)
-         throw new Error();
-      else if (arguments.length == 1)
-         throw new Error(arguments[0]);
-      else
-         throw new arguments[1].call(null, arguments[0]);
-   }
-   else {
-      if (arguments.length == 0)
-         trace('an error has occurred but no message was provided');
-      else
-         trace(arguments[0]);
-   }
 }
 
 /* Returns undefined if an array has 0 elements, the first element if it 
@@ -99,7 +80,7 @@ function unpack(arr) {
 function getXtra(name, caller) {
    var x = new nativeXtra(name);
    if (!x)
-      error('director.getXtra: ' + name + ' xtra must be included' + (caller ? (' to use ' + caller) : ''));         
+      throw new Error('director.getXtra: ' + name + ' xtra must be included' + (caller ? (' to use ' + caller) : ''));         
    return x;
 };
 
@@ -121,7 +102,8 @@ exports.has = function(obj, key) {
    If the function returns false, iteration is stopped.
 */
 exports.each = function(iter, func, context) {      
-   if (!exports.valid(iter)) return;
+   if (!iter) throw new TypeError('director.each: cannot iterate over ' + iter);
+   
    if (iter.length == +iter.length) {      
          var len = iter.length >>> 0;
          for (var i = 0; i < len; i++) {
@@ -139,8 +121,9 @@ exports.each = function(iter, func, context) {
    Returns an array containing the results of each function call.
 */
 exports.map = function(iter, func, context) {
-   var results = [];
-   if (!exports.valid(iter)) return results;
+   if (!iter) throw new TypeError('director.map: cannot map ' + iter);
+
+   var results = [];  
    exports.each(iter, function(key, val) {
       results.push(func.call(context, key, val));
    });
@@ -151,7 +134,7 @@ exports.map = function(iter, func, context) {
    The test function does not need to return a strictly false result.
 */
 exports.filter = function(iter, test, context) {
-   if (!exports.valid(iter)) return undefined;
+   if (!iter) throw new TypeError('director.filter: cannot itemize ' + iter);
    
    var results;
    if (iter.length == +iter.length) {
@@ -178,6 +161,8 @@ exports.filter = function(iter, test, context) {
    If an array is given, returns the array. All other values raise an exception.
 */
 exports.itemize = function(iter) {   
+   if (!iter) throw new TypeError('director.itemize: cannot itemize ' + iter);
+
    if (iter.length == +iter.length) {
       return iter;
    }
@@ -187,7 +172,7 @@ exports.itemize = function(iter) {
       return results;
    }
    else {
-      error('director.itemize: cannot itemize ' + iter, TypeError);      
+      throw new TypeError('director.itemize: cannot itemize ' + iter);      
    }
 };
 
@@ -324,13 +309,14 @@ exports.type = function type(obj) {
 */
 exports.propList = function(iter) {
    if (!exports.valid(iter)) throw new TypeError('director.propList: cannot convert ' + iter + ' to propList');
+   
    var results = [];
    if (iter.length == +iter.length)
       results = iter;      
    else if (typeof iter == 'object')
       exports.each(iter, function(key, val) { results.push(nativeSymbol(key), val); });                        
    else
-      error('director.propList: cannot convert ' + iter + ' to propList', TypeError);
+      throw new TypeError('director.propList: cannot convert ' + iter + ' to propList');
    return nativePropList.apply(here, results);
 };
 
@@ -345,13 +331,17 @@ exports.member = function() {
    return unpack(f);        
 }
    
-/* Returns sprites with the given name.      
+/* Returns sprites with the given names.      
    
       // Sprite 'boat' does not exist
       var names = ['anchor', 'boat', 'coral'];
       
       // <(sprite 1)> <(sprite 2)>
       var sprites = director.sprite.apply(this, name);      
+      
+   If the sprite number does not exist, attempting to access
+   a property on the resulting sprite object will result in
+   an uncatchable error         
 */
 exports.sprite = function() {
    var m = exports.map(arguments, function(key, val) { 
@@ -448,7 +438,7 @@ function Behavior(options) {
    // Attach this globally to the current script. Can only be done once!
    this.bind = function(context) {
       if (bound)
-         error('Behavior.bind: this Behavior has already been bound to a script');
+         throw new Error('Behavior.bind: this Behavior has already been bound to a script');
       
       // Add parameters
       if (exports.valid(options.parameters)) {
@@ -457,9 +447,19 @@ function Behavior(options) {
             exports.merge(opts, {
                'comment' : 'No comment was given',
                'default' : '',
-               'format' : 'string'
+               'format' : 'string',
+               'range' : null
             });
             opts.format = nativeSymbol(opts.format);
+            
+            if (opts.range.length == +opts.range.length) {
+               opts.range = nativeList(opts.range);   
+            }
+            else if (opts.range.hasOwnProperty('min') && opts.range.hasOwnProperty('max')) {
+               opts.range = nativePropList('min', opts.range.min, 'max', opts.range.max);
+               opts.format = 'integer';
+            }
+            
             converted[key] = exports.propList(opts);
          });
          options.parameters = exports.propList(converted);
@@ -480,11 +480,33 @@ function Behavior(options) {
    and contain callback functions for Director events.
    
    Options are:
-   'description'  a description displayed in the Behaviors info panel 
-   'handlers'     an object whose keys are Director handler names and
-                  values are functions for those handlers.
    
-   Parameters are variables configurable from the Behaviors panel.
+      description :  a description displayed in the Behaviors info panel 
+      handlers    :  an object whose keys are Director handler names and
+                     values are functions for those handlers.
+   
+   Parameters are variables configurable from the Behaviors panel. Valid options
+   for parameters are:
+            
+      comment : (optional) a string
+      
+      format  : (optional) a string, and one of the following valid formats:
+                  integer, float, string, symbol, member, bitmap, filmloop, 
+                  field, palette, picture, sound, button, shape, movie, 
+                  digitalvideo, script, richtext, ole, transition, xtra, 
+                  frame, marker, ink, boolean
+                
+                defaults to 'string'
+                
+      default : (optional) the default value of the parameter
+                defaults to null
+                
+      range   : (optional) an array of values, which will be generated in a
+                dropdown box. If an object is given (with the keys 'min'
+                and 'max') a numeric slider is generated with the range of
+                values specified.
+   
+   An example:
    
       var director = _global.director;
    
@@ -517,16 +539,16 @@ var timerPool = exports.keyPool();
                     If 0, undefined or null is given, the timer will run forever.
    'callback'     : A callback that is called after the duration has elapsed.
 */
-exports.timer = function(options) {              
-   if (typeof options.callback !== 'function')
-      error('director.timer: callback must be a function, not ' + options.callback, TypeError);
-
-   if (typeof options.duration !== 'number')
-      error('director.time: duration must be a number, not ' + options.duration, TypeError);
-
+exports.timer = function(options) {   
    exports.merge(options, {
       count : Infinity
    });   
+    
+   if (typeof options.callback !== 'function')
+      throw new TypeError('director.timer: callback must be a function, not ' + options.callback);
+
+   if (typeof options.duration !== 'number')
+      throw new TypeError('director.time: duration must be a number, not ' + options.duration);
 
    function Timer(key) {
      this.currentCount = 0;
@@ -588,7 +610,7 @@ exports.net.open = function(uri, options) {
    else if (options.method == 'post')
       netID = postNetText(uri, exports.propList(options.data));
    else
-      error('director.net.open: ' + options.method + ' is not a valid HTTP method', TypeError);
+      throw new TypeError('director.net.open: ' + options.method + ' is not a valid HTTP method');
 
    exports.timer({
       'duration' : 0.1,
@@ -681,7 +703,7 @@ exports.file.open = function(path, mode) {
    var xtra = getXtra('fileio', 'exports.file.open');      
    var mode = /^\s*([rwa])(\+){0,1}\s*$/i.exec(mode);
    if (!mode)
-      error('director.file.open: valid modes for exports.file.open are r, w, a, r+, w+ and a+');
+      throw new Error('director.file.open: valid modes for exports.file.open are r, w, a, r+, w+ and a+');
    
    var type = mode[1],
        rw = Boolean(mode[2]);
@@ -702,7 +724,7 @@ exports.file.open = function(path, mode) {
    else if (status == 0) {
    }
    else {
-      error('director.file.open: ' + path + ' ' + xtra.error(xtra.status()));
+      throw new Error('director.file.open: ' + path + ' ' + xtra.error(xtra.status()));
    }
    
    if (type == 'a')
