@@ -1,6 +1,6 @@
 # director.js
 
-A Javascript wrapper for Adobe Director
+A JavaScript wrapper for Adobe Director
 
 This library attempts to wrap some of the inconsistencies and common pitfalls
 of ECMAScript in Adobe Director. New functionality is also provided, such as
