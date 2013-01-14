@@ -1,4 +1,4 @@
-/* director.js - an ECMAScript wrapper for Adobe Director
+ /* director.js - an ECMAScript wrapper for Adobe Director
    
    This library attempts to wrap the inconsistencies, missing documentation and common pitfalls
    of ECMAScript in Adobe Director. New functionality is also provided, such astimers, wrapping 
@@ -450,14 +450,21 @@ function Behavior(options) {
                'format' : 'string',
                'range' : null
             });
+            
+            if (opts.format == 'boolean' && opts['default'] == '') {
+              opts['default'] = false;
+            }
+            
             opts.format = nativeSymbol(opts.format);
             
-            if (opts.range.length == +opts.range.length) {
-               opts.range = nativeList(opts.range);   
-            }
-            else if (opts.range.hasOwnProperty('min') && opts.range.hasOwnProperty('max')) {
-               opts.range = nativePropList('min', opts.range.min, 'max', opts.range.max);
-               opts.format = 'integer';
+            if (opts.range != null) {
+              if (opts.range.length == +opts.range.length) {
+                 opts.range = nativeList(opts.range);   
+              }
+              else if (opts.range.hasOwnProperty('min') && opts.range.hasOwnProperty('max')) {
+                 opts.range = nativePropList('min', opts.range.min, 'max', opts.range.max);
+                 opts.format = 'integer';
+              }
             }
             
             converted[key] = exports.propList(opts);
@@ -605,36 +612,70 @@ exports.net.open = function(uri, options) {
    });
 
    var netID;
-   if (options.method == 'get')      
+   if (options.method == 'get') {
       netID = getNetText(uri, exports.propList(options.data));
-   else if (options.method == 'post')
+   }
+   else if (options.method == 'post') {
       netID = postNetText(uri, exports.propList(options.data));
-   else
+   }
+   else {
       throw new TypeError('director.net.open: ' + options.method + ' is not a valid HTTP method');
+   }
+
+   function onFailure(message, data) {
+      if (typeof options.error === 'function') {            
+        options.error.call(
+          here, 
+          new Event('net.open', data, null, message));
+      }
+   }
+
+   function onSuccess() {     
+      var successFunc = function(data) {
+          if (typeof options.complete === 'function') {
+            options.complete.call(
+                  here, 
+                  new Event('net.open', data));
+          }
+      },
+      data = netTextResult(netID);          
+   
+      if (options.type == 'json') {
+        if (!_global.JSON) {
+          return onFailure('director.net.open: no JSON decoder found');          
+        }
+      
+        try {
+          successFunc(_global.JSON.parse(data));
+        }
+        catch (e) {
+          onFailure('director.net.open: no JSON data could be decoded', data);
+        }
+      }
+      else {
+        successFunc(data);        
+      }   
+   }
 
    exports.timer({
       'duration' : 0.1,
       'callback' : function(event) {
-         if (netDone(netID) == 1) {
-            if (typeof options.complete === 'function') {
-               var data;
-               if (options.type == 'json' && _global.JSON)
-                  data = _global.JSON.parse(netTextResult(netID))
-               else
-                  data = netTextResult(netID);
-               
-               options.complete.call(
-                  here, 
-                  new Event('net.open', data));
-            }
-            if (netError(netID) != 'OK' && typeof options.error === 'function') {
-               options.error.call(
-                  here, 
-                  new Event('net.open', null, null, netError(netID)));
-            }
-            event.dispatcher.stop();
+         var status = netDone(netID),
+             error = netError(netID);
+         
+         if (status == '') {
+           return;
          }
-       }
+         
+         if ((status == 1 || status == 'OK') && error == 'OK') {
+            event.dispatcher.stop();                   
+            onSuccess();  
+         }
+         else {
+            event.dispatcher.stop();                            
+            onFailure(error, netTextResult(netID));
+         }
+      }
    });      
 };   
 
